@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SimpleForm</title>
+  <link rel="stylesheet" href="../css/main.css">
+</head>
+<body>
+
+<header class="app-header">
+  <div class="container">
+    <a href="/" class="app-logo">SimpleForm</a>
+    <button class="btn btn-primary" onclick="openCreateModal()">+ Нова форма</button>
+  </div>
+</header>
+
+<main class="container">
+  <div class="page-header">
+    <h1 class="page-title">Мої форми</h1>
+    <p class="page-subtitle">Створюй форми, збирай відповіді</p>
+  </div>
+
+  <div id="forms-list">
+    <div class="empty-state"><div class="spinner"></div></div>
+  </div>
+</main>
+
+<!-- Create modal -->
+<div id="modal-overlay" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.4); z-index:50; align-items:center; justify-content:center;">
+  <div class="card" style="width:480px; margin:0;">
+    <h2 style="font-size:18px; font-weight:600; margin-bottom:20px;">Нова форма</h2>
+    <div class="form-group">
+      <label class="form-label">Назва форми *</label>
+      <input id="form-title" class="form-input" type="text" placeholder="Наприклад: Опитування студентів">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Опис</label>
+      <textarea id="form-desc" class="form-input" rows="3" placeholder="Необов'язково"></textarea>
+    </div>
+    <div style="display:flex; gap:8px; justify-content:flex-end; margin-top:8px;">
+      <button class="btn btn-outline" onclick="closeCreateModal()">Скасувати</button>
+      <button class="btn btn-primary" onclick="createForm()">Створити</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast" class="toast"></div>
+
+<script src="../js/api.js"></script>
+<script src="../js/index.js"></script>
+</body>
+</html>
