@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Мої форми</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="page">
+  <nav class="nav">
+    <a class="nav-brand" href="/">
+<!--     <div class="nav-logo">!</div> --> 
+      <span class="nav-name">SimpleForm</span>
+    </a>
+    <a href="create.html" class="btn btn-primary">
+      <span>+</span> Нова форма
+    </a>
+  </nav>
+
+  <div class="accent-bar"></div>
+
+  <h1 class="page-title">Ваші форми</h1>
+  <p class="page-sub">Створюйте опитування, отримуйте відповіді та аналізуйте результати</p>
+
+  <div id="root">
+    <div class="loader"><div class="spinner"></div> Завантаження...</div>
+  </div>
+</div>
+
+<div id="toast-root"></div>
+
+<script src="\js\index.js"></script>
+</body>
+</html>

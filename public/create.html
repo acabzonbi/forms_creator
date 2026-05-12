@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Створити форму</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="page">
+  <nav class="nav">
+    <a class="nav-brand" href="/">
+      <div class="nav-logo">◈</div>
+      <span class="nav-name">SimpleForm</span>
+    </a>
+  </nav>
+
+  <a href="/" class="back-link">← Назад до форм</a>
+
+  <div class="accent-bar"></div>
+  <h1 class="page-title">Нова форма</h1>
+  <p class="page-sub">Додайте запитання різних типів та вкажіть правильні відповіді</p>
+
+  <div class="form-group">
+    <label class="form-label">Назва форми</label>
+    <input class="input" id="title" placeholder="Наприклад: Вікторина з математики" maxlength="120">
+  </div>
+  <div class="form-group">
+    <label class="form-label">Опис (необов'язково)</label>
+    <textarea class="textarea" id="description" placeholder="Короткий опис форми..." rows="2"></textarea>
+  </div>
+
+  <div class="divider"></div>
+
+  <div class="section-hdr">
+    <span class="section-lbl">Запитання</span>
+    <div style="display:flex;gap:7px;">
+      <button class="btn btn-sm btn-ghost" onclick="addQuestion('single')">◉ Одна відповідь</button>
+      <button class="btn btn-sm btn-ghost" onclick="addQuestion('multiple')">◈ Декілька</button>
+      <button class="btn btn-sm btn-ghost" onclick="addQuestion('text')">✎ Текст</button>
+    </div>
+  </div>
+
+  <div id="question-list" class="question-list"></div>
+
+  <div id="empty-q" style="text-align:center;padding:36px;color:var(--muted);font-size:14px;">
+    Додайте запитання, натиснувши кнопку вище
+  </div>
+
+  <div class="divider"></div>
+
+  <div style="display:flex;gap:10px;justify-content:flex-end;">
+    <a href="/" class="btn btn-ghost">Скасувати</a>
+    <button class="btn btn-primary btn-lg" onclick="save()" id="save-btn">Зберегти форму</button>
+  </div>
+</div>
+
+<div id="toast-root"></div>
+
+<script src="\js\create.js"></script>
+</body>
+</html>

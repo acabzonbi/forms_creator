@@ -1,71 +1,89 @@
-async function loadForms() {
-  const res = await API.get('/api/forms');
-  const container = document.getElementById('forms-list');
+async function load() {
+  const res = await fetch('/api/forms');
+  const forms = await res.json();
+  const root = document.getElementById('root');
 
-  if (!res.success || res.data.length === 0) {
-    container.innerHTML = `
+  if (!forms.length) {
+    root.innerHTML = `
       <div class="empty-state">
-        <div style="font-size:40px;">📋</div>
-        <p>У вас ще немає форм. Створіть першу!</p>
+        <div class="empty-icon">◈</div>
+        <div class="empty-title">Поки що немає форм</div>
+        <p class="empty-text">Створіть першу форму і поділіться нею з іншими</p>
+        <a href="create.html" class="btn btn-primary">+ Створити форму</a>
       </div>`;
     return;
   }
 
-  container.innerHTML = res.data.map(form => `
-    <div class="card" style="display:flex; align-items:center; justify-content:space-between; gap:16px;">
-      <div style="flex:1; min-width:0;">
-        <div style="font-size:16px; font-weight:500; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
-          ${form.title}
-        </div>
-        <div style="font-size:13px; color:var(--text-muted); margin-top:2px;">
-          ${form.fields.length} полів · ${new Date(form.createdAt).toLocaleDateString('uk')}
+  root.innerHTML = `<div class="section-hdr">
+    <span class="section-lbl">${forms.length} форм${plural(forms.length)}</span>
+  </div><div class="forms-grid" id="grid"></div>`;
+
+  const grid = document.getElementById('grid');
+  forms.forEach(f => {
+    const qCount = f.questions ? f.questions.length : 0;
+    const hasValidation = f.questions && f.questions.some(q =>
+      q.correctAnswers && q.correctAnswers.length > 0
+    );
+    const div = document.createElement('div');
+    div.className = 'card card-interactive form-card';
+    div.innerHTML = `
+      <div class="form-card-info">
+        <div class="form-card-title">${esc(f.title)}</div>
+        <div class="form-card-meta">
+          <span class="badge badge-accent"> ${qCount} запит${pluralQ(qCount)}</span>
+          ${hasValidation ? '<span class="badge badge-success"> Валідація</span>' : ''}
         </div>
       </div>
-      <div style="display:flex; gap:6px; flex-shrink:0;">
-        <a href="/form/${form.id}" class="btn btn-outline btn-sm" target="_blank">Заповнити</a>
-        <a href="/form/${form.id}/results" class="btn btn-outline btn-sm">Відповіді</a>
-        <button class="btn btn-danger btn-sm" onclick="deleteForm('${form.id}')">Видалити</button>
-      </div>
-    </div>
-  `).join('');
-}
-
-function openCreateModal() {
-  const overlay = document.getElementById('modal-overlay');
-  overlay.style.display = 'flex';
-  document.getElementById('form-title').focus();
-}
-
-function closeCreateModal() {
-  document.getElementById('modal-overlay').style.display = 'none';
-  document.getElementById('form-title').value = '';
-  document.getElementById('form-desc').value = '';
-}
-
-async function createForm() {
-  const title = document.getElementById('form-title').value.trim();
-  if (!title) { showToast('Введіть назву форми', 'error'); return; }
-
-  const res = await API.post('/api/forms', {
-    title,
-    description: document.getElementById('form-desc').value.trim(),
-    fields: [],
+      <div class="form-card-actions">
+        <a href="form.html?id=${f.id}" class="btn btn-sm btn-secondary">Пройти</a>
+        <a href="answers.html?id=${f.id}" class="btn btn-sm btn-ghost">Відповіді</a>
+        <button class="btn btn-sm btn-icon btn-danger" onclick="confirmDelete('${f.id}','${esc(f.title)}')" title="Видалити">✕</button>
+      </div>`;
+    grid.appendChild(div);
   });
-
-  if (res.success) {
-    closeCreateModal();
-    showToast('Форму створено!');
-    await loadForms();
-  } else {
-    showToast(res.error, 'error');
-  }
 }
 
-async function deleteForm(id) {
-  if (!confirm('Видалити форму?')) return;
-  const res = await API.delete(`/api/forms/${id}`);
-  if (res.success) { showToast('Форму видалено'); await loadForms(); }
-  else showToast(res.error, 'error');
+function plural(n) {
+  if (n % 10 === 1 && n % 100 !== 11) return 'а';
+  if ([2,3,4].includes(n % 10) && ![12,13,14].includes(n % 100)) return 'и';
+  return '';
+}
+function pluralQ(n) {
+  if (n % 10 === 1 && n % 100 !== 11) return 'ання';
+  if ([2,3,4].includes(n % 10) && ![12,13,14].includes(n % 100)) return 'ань';
+  return 'ань';
+}
+function esc(s) { return String(s).replace(/[<>&"]/g, c => ({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;'})[c]); }
+
+function confirmDelete(id, title) {
+  const ov = document.createElement('div');
+  ov.className = 'modal-overlay';
+  ov.innerHTML = `
+    <div class="modal">
+      <div class="modal-title">Видалити форму?</div>
+      <div class="modal-text">«${esc(title)}» буде видалено назавжди разом з усіма відповідями.</div>
+      <div class="modal-actions">
+        <button class="btn btn-ghost" id="cancel-del">Скасувати</button>
+        <button class="btn btn-danger" id="confirm-del">Видалити</button>
+      </div>
+    </div>`;
+  document.body.appendChild(ov);
+  document.getElementById('cancel-del').onclick = () => ov.remove();
+  document.getElementById('confirm-del').onclick = async () => {
+    ov.remove();
+    await fetch(`/api/forms/${id}`, { method: 'DELETE' });
+    toast('Форму видалено', 'ok');
+    load();
+  };
+  ov.addEventListener('click', e => { if (e.target === ov) ov.remove(); });
 }
 
-document.addEventListener('DOMContentLoaded', loadForms);
+function toast(msg, type = 'ok') {
+  const t = document.createElement('div');
+  t.className = `toast ${type}`;
+  t.textContent = (type === 'ok' ? '✓ ' : '✕ ') + msg;
+  document.getElementById('toast-root').appendChild(t);
+  setTimeout(() => t.remove(), 3200);
+}
+
+load();

@@ -9,6 +9,7 @@
     "dev": "nodemon src/server.js"
   },
   "dependencies": {
+    "cors": "^2.8.6",
     "express": "^4.22.1",
     "uuid": "^9.0.0"
   },
