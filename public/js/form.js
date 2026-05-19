@@ -64,7 +64,7 @@ function renderQuestions() {
           <div class="choice ${cls}" onclick="selectSingle('${q.id}','${esc(opt)}')" data-opt="${esc(opt)}">
             <div class="c-dot"></div>
             <span>${esc(opt)}</span>
-            ${showAnswers && isCorrect ? '<span style="margin-left:auto;font-size:11px;opacity:0.8;">✓</span>' : ''}
+            
           </div>`;
       });
       body += `</div>`;
@@ -80,7 +80,7 @@ function renderQuestions() {
           <div class="choice ${cls}" onclick="selectMulti('${q.id}','${esc(opt)}')" data-opt="${esc(opt)}">
             <div class="c-dot square"></div>
             <span>${esc(opt)}</span>
-            ${showAnswers && isCorrect ? '<span style="margin-left:auto;font-size:11px;opacity:0.8;">✓</span>' : ''}
+
           </div>`;
       });
       body += `</div>`;
@@ -92,7 +92,7 @@ function renderQuestions() {
           placeholder="Ваша відповідь..."
           oninput="answers['${q.id}']=this.value">
         ${showAnswers && q.correctAnswers && q.correctAnswers.length
-          ? `<div class="hint-box" style="margin-top:10px;">✓ Правильна відповідь: <strong>${esc(q.correctAnswers[0])}</strong></div>`
+          ? `<div class="hint-box" style="margin-top:10px;">Правильна відповідь: <strong>${esc(q.correctAnswers[0])}</strong></div>`
           : ''}`;
     }
 
@@ -164,7 +164,7 @@ async function submit() {
 
 function showScore(score, max) {
   const pct = max > 0 ? Math.round((score / max) * 100) : 0;
-//  let emoji = pct >= 80 ? '🎉' : pct >= 50 ? '👍' : '💪';
+
   const wrap = document.getElementById('score-wrap');
   wrap.innerHTML = `
     <div class="score-panel">

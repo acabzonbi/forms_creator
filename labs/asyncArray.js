@@ -1,3 +1,5 @@
+
+// Promise version
 function asyncMap(array, asyncFn, signal) {
     return new Promise((resolve, reject) => {
         if (signal?.aborted) {
@@ -24,6 +26,8 @@ function asyncMap(array, asyncFn, signal) {
     });
 }
 
+
+// Callback version
 function callbackMap(array, asyncFn, done, signal) {
     if (signal?.aborted) return done(null, new Error('Скасовано до початку'));
 

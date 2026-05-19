@@ -20,9 +20,8 @@ function render(form, responses) {
       <h1 class="page-title">${esc(form.title)}</h1>
       <p class="page-sub">Відповіді на форму</p>
       <div class="empty-state">
-        <div class="empty-icon">📭</div>
         <div class="empty-title">Відповідей ще немає</div>
-        <p class="empty-text">Поділіться формою, щоб отримати перші відповіді</p>
+        <br>
         <a href="form.html?id=${id}" class="btn btn-primary">Пройти форму</a>
       </div>`;
     return;

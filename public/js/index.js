@@ -6,9 +6,8 @@ async function load() {
   if (!forms.length) {
     root.innerHTML = `
       <div class="empty-state">
-        <div class="empty-icon">◈</div>
-        <div class="empty-title">Поки що немає форм</div>
-        <p class="empty-text">Створіть першу форму і поділіться нею з іншими</p>
+        <div class="empty-title">Немає форм</div>
+        <br>
         <a href="create.html" class="btn btn-primary">+ Створити форму</a>
       </div>`;
     return;
