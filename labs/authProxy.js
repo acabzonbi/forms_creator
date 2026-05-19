@@ -1,80 +1,211 @@
 const https = require('https');
 const http = require('http');
+const crypto = require('crypto');
+
+const GOOGLE_CLIENT_ID     = '824819519682-4vd1hm9bio3n99jsc7p5ftobhr1nergp.apps.googleusercontent.com';
+const GOOGLE_CLIENT_SECRET = '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';
+const REDIRECT_URI         = 'http://localhost:3000/auth/google/callback';
+
+const GOOGLE_AUTH_URL  = 'https://accounts.google.com/o/oauth2/v2/auth';
+const GOOGLE_TOKEN_URL = 'https://oauth2.googleapis.com/token';
+const GOOGLE_USER_URL  = 'https://www.googleapis.com/oauth2/v2/userinfo';
+
+const sessions = new Map();
+
+function httpsPost(url, data) {
+    return new Promise((resolve, reject) => {
+        const body = new URLSearchParams(data).toString(); 
+        const parsed = new URL(url);
+
+        const options = {
+            hostname: parsed.hostname,
+            path: parsed.pathname,
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+                'Content-Length': Buffer.byteLength(body)
+            }
+        };
+
+        const req = https.request(options, res => {
+            let raw = '';
+            res.on('data', chunk => (raw += chunk));
+            res.on('end', () => {
+                try { resolve(JSON.parse(raw)); }
+                catch { reject(new Error('Невалідна відповідь від Google')); }
+            });
+        });
+
+        req.on('error', reject);
+        req.write(body);
+        req.end();
+    });
+}
+
+function httpsGet(url, accessToken) {
+    return new Promise((resolve, reject) => {
+        const parsed = new URL(url);
+
+        const options = {
+            hostname: parsed.hostname,
+            path: parsed.pathname + parsed.search,
+            method: 'GET',
+            headers: {
+                'Authorization': `Bearer ${accessToken}`
+            }
+        };
+
+        const req = https.request(options, res => {
+            let raw = '';
+            res.on('data', chunk => (raw += chunk));
+            res.on('end', () => {
+                try { resolve(JSON.parse(raw)); }
+                catch { reject(new Error('Невалідна відповідь')); }
+            });
+        });
+
+        req.on('error', reject);
+        req.end();
+    });
+}
 
 class AuthProxy {
-    constructor({ token, tokenType = 'Bearer', rateLimit = 60 } = {}) {
-        this.token = token;
-        this.tokenType = tokenType;
-        this._rateLimit = rateLimit;
-        this._requestTimestamps = [];
+
+    getAuthUrl() {
+        const params = new URLSearchParams({
+            client_id:     GOOGLE_CLIENT_ID,
+            redirect_uri:  REDIRECT_URI,
+            response_type: 'code', 
+            scope: 'openid email profile', 
+            access_type: 'offline', 
+        });
+
+        return `${GOOGLE_AUTH_URL}?${params.toString()}`;
     }
 
-    _checkRateLimit() {
-        const now = Date.now();
-        this._requestTimestamps = this._requestTimestamps.filter(t => now - t < 60_000);
-        if (this._requestTimestamps.length >= this._rateLimit) {
-            throw new Error(`[AuthProxy] Перевищено ліміт: ${this._rateLimit} запитів/хв`);
+    async exchangeCode(code) {
+        console.log('[AuthProxy] Обмін code на токени...');
+
+        const tokens = await httpsPost(GOOGLE_TOKEN_URL, {
+            code,
+            client_id:     GOOGLE_CLIENT_ID,
+            client_secret: GOOGLE_CLIENT_SECRET,
+            redirect_uri:  REDIRECT_URI,
+            grant_type:    'authorization_code'
+        });
+
+        if (tokens.error) {
+            throw new Error(`Google OAuth помилка: ${tokens.error_description}`);
         }
-        this._requestTimestamps.push(now);
+
+        console.log('[AuthProxy] Токени отримано');
+        return tokens;
     }
 
-    _buildHeaders(extra = {}) {
-        return {
-            'Authorization': `${this.tokenType} ${this.token}`,
-            'Content-Type': 'application/json',
-            ...extra
+    async getUserInfo(accessToken) {
+        console.log('[AuthProxy] Отримуємо дані користувача...');
+
+        const user = await httpsGet(GOOGLE_USER_URL, accessToken);
+
+        console.log(`[AuthProxy] Користувач: ${user.email} ✓`);
+        return user;
+    }
+
+    createSession(user, tokens) {
+        const sessionId = crypto.randomBytes(32).toString('hex');
+        sessions.set(sessionId, {
+            user,
+            accessToken: tokens.access_token,
+            refreshToken: tokens.refresh_token,
+            expiresAt: Date.now() + (tokens.expires_in * 1000),
+            requestCount: 0,
+            createdAt: new Date().toISOString()
+        });
+
+        console.log(`[AuthProxy] Сесію створено для ${user.email}`);
+        return sessionId;
+    }
+
+    getSession(sessionId) {
+        return sessions.get(sessionId) || null;
+    }
+
+    deleteSession(sessionId) {
+        sessions.delete(sessionId);
+        console.log('[AuthProxy] Сесію видалено (вихід)');
+    }
+
+    async renewToken(sessionId) {
+        const session = sessions.get(sessionId);
+        if (!session?.refreshToken) throw new Error('Немає refresh token');
+
+        console.log('[AuthProxy] Оновлення токена...');
+
+        const tokens = await httpsPost(GOOGLE_TOKEN_URL, {
+            client_id:     GOOGLE_CLIENT_ID,
+            client_secret: GOOGLE_CLIENT_SECRET,
+            refresh_token: session.refreshToken,
+            grant_type:    'refresh_token'
+        });
+
+        if (tokens.error) throw new Error(`Помилка оновлення: ${tokens.error}`);
+
+        session.accessToken = tokens.access_token;
+        session.expiresAt   = Date.now() + (tokens.expires_in * 1000);
+        sessions.set(sessionId, session);
+
+        console.log('[AuthProxy] Токен оновлено');
+        return tokens.access_token;
+    }
+
+    isTokenExpired(sessionId) {
+        const session = sessions.get(sessionId);
+        if (!session) return true;
+        return Date.now() > session.expiresAt;
+    }
+
+    requireAuth() {
+        return (req, res, next) => {
+            const sessionId = this._getSessionId(req);
+            const session   = sessionId ? this.getSession(sessionId) : null;
+
+            if (!session) {
+                if (req.path.startsWith('/api')) {
+                    return res.status(401).json({
+                        error: 'Потрібна авторизація',
+                        loginUrl: '/auth/google'
+                    });
+                }
+                return res.redirect('/login.html');
+            }
+
+            req.user      = session.user;
+            req.sessionId = sessionId;
+
+            session.requestCount++;
+            sessions.set(sessionId, session);
+
+            console.log(`[AuthProxy] Запит від ${session.user.email} (всього: ${session.requestCount})`);
+            next();
         };
     }
 
-    _request(method, url, body = null) {
-        this._checkRateLimit();
-
-        const parsed = new URL(url);
-        const lib = parsed.protocol === 'https:' ? https : http;
-        const payload = body ? JSON.stringify(body) : null;
-
-        console.log(`[AuthProxy] ${method} ${url}`);
-
-        return new Promise((resolve, reject) => {
-            const options = {
-                method,
-                hostname: parsed.hostname,
-                port: parsed.port || (parsed.protocol === 'https:' ? 443 : 80),
-                path: parsed.pathname + parsed.search,
-                headers: this._buildHeaders(
-                    payload ? { 'Content-Length': Buffer.byteLength(payload) } : {}
-                )
-            };
-
-            const req = lib.request(options, res => {
-                let data = '';
-                res.on('data', chunk => (data += chunk));
-                res.on('end', () => {
-                    if (res.statusCode === 401) {
-                        reject(new Error('[AuthProxy] 401 — токен недійсний або застарів'));
-                    } else {
-                        try { resolve(JSON.parse(data)); }
-                        catch { resolve(data); }
-                    }
-                });
-            });
-
-            req.on('error', reject);
-            if (payload) req.write(payload);
-            req.end();
-        });
+    _getSessionId(req) {
+        const cookieHeader = req.headers.cookie || '';
+        const match = cookieHeader.match(/sessionId=([^;]+)/);
+        return match ? match[1] : null;
     }
 
-    get(url)           { return this._request('GET', url); }
-    post(url, body)    { return this._request('POST', url, body); }
-    put(url, body)     { return this._request('PUT', url, body); }
-    delete(url)        { return this._request('DELETE', url); }
-
-    async renewToken(refreshFn) {
-        console.log('[AuthProxy] Оновлення токена...');
-        this.token = await refreshFn();
-        console.log('[AuthProxy] Токен оновлено');
+    getStats() {
+        const all = [...sessions.entries()].map(([id, s]) => ({
+            email:        s.user.email,
+            name:         s.user.name,
+            createdAt:    s.createdAt,
+            requestCount: s.requestCount,
+            tokenExpired: Date.now() > s.expiresAt
+        }));
+        return { activeSessions: sessions.size, sessions: all };
     }
 }
 
-module.exports = AuthProxy;
+module.exports = new AuthProxy();

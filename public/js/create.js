@@ -86,7 +86,7 @@ function renderAll() {
       </div>`;
 
     if (q.type === 'single' || q.type === 'multiple') {
-      bodyHtml += `<div class="section-lbl" style="margin-bottom:8px;">Варіанти відповідей <span style="color:var(--success);font-size:10px;">(✓ = правильна)</span></div>`;
+      bodyHtml += `<div class="section-lbl" style="margin-bottom:8px;">Варіанти відповідей</div>`;
       bodyHtml += `<div class="options-list">`;
       q.options.forEach((opt, oi) => {
         const isCorrect = q.correctAnswers.includes(opt) && opt !== '';
@@ -113,7 +113,7 @@ function renderAll() {
     } else {
       bodyHtml += `
         <div class="form-group" style="margin-bottom:0;">
-          <label class="form-label">Правильна відповідь (необов'язково, для валідації)</label>
+          <label class="form-label">Правильна відповідь (необов'язково)</label>
           <input class="input" id="correct-${q.id}" value="${esc(q.correctAnswers[0] || '')}"
             placeholder="Залиште порожнім, якщо не потрібна валідація"
             oninput="questions.find(x=>x.id===${q.id}).correctAnswers=this.value?[this.value]:[]">

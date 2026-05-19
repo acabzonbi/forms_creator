@@ -42,6 +42,19 @@ async function load() {
   });
 }
 
+fetch('/auth/me')
+  .then(r => r.json())
+  .then(data => {
+    if (!data.loggedIn) {
+      location.href = '/login.html';
+      return;
+    }
+    // Підставляємо аватар і ім'я
+    document.getElementById('user-info').style.display = 'flex';
+    document.getElementById('user-avatar').src = data.user.picture;
+    document.getElementById('user-name').textContent = data.user.name;
+});
+
 function plural(n) {
   if (n % 10 === 1 && n % 100 !== 11) return 'а';
   if ([2,3,4].includes(n % 10) && ![12,13,14].includes(n % 100)) return 'и';
@@ -80,7 +93,7 @@ function confirmDelete(id, title) {
 function toast(msg, type = 'ok') {
   const t = document.createElement('div');
   t.className = `toast ${type}`;
-  t.textContent = (type === 'ok' ? '✓ ' : '✕ ') + msg;
+  t.textContent = msg;
   document.getElementById('toast-root').appendChild(t);
   setTimeout(() => t.remove(), 3200);
 }
